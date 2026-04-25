@@ -114,5 +114,4 @@ npm run dev
   "season": "Kharif"
 }
 ```
-
 Enjoy maximizing agricultural yields! 🌾
