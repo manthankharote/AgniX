@@ -21,8 +21,10 @@ try:
     with open(LABEL_ENCODER_PATH, 'rb') as f:
         label_encoder = pickle.load(f)
     print("Model and Encoders loaded successfully.")
-except FileNotFoundError:
-    print("Model or Encoder not found. Please run train_model.py first.")
+except Exception as e:
+    print(f"Failed to load models: {e}")
+    import traceback
+    traceback.print_exc()
     model = None
     encoder = None
     label_encoder = None
