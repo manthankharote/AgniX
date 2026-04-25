@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import apiRoutes from './routes/api.js';
 
+
 dotenv.config();
 
 const app = express();
