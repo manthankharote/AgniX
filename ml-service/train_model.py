@@ -27,8 +27,9 @@ def train_and_save():
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    print("Training RandomForestClassifier on REAL data...")
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    print("Training GaussianNB on REAL data for higher confidence margins...")
+    from sklearn.naive_bayes import GaussianNB
+    model = GaussianNB()
     model.fit(X_train, y_train)
     
     # Evaluate
