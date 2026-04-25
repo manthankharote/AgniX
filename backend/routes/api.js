@@ -25,26 +25,33 @@ const getFertilizerRoadmap = (crop) => {
     };
 };
 
-// Regional Crop Boosting
-const regionalBoosts = {
-    'maharashtra': ['cotton', 'soybean', 'tur', 'sugarcane', 'pomegranate', 'grapes'],
-    'punjab': ['wheat', 'rice', 'cotton', 'maize'],
-    'haryana': ['wheat', 'rice', 'mustard'],
-    'karnataka': ['coffee', 'ragi', 'tur', 'sunflower'],
-    'kerala': ['coconut', 'rubber', 'coffee', 'tea', 'spices'],
-    'gujarat': ['cotton', 'groundnut', 'castor'],
-    'uttar pradesh': ['sugarcane', 'wheat', 'rice', 'potato', 'mango'],
-    'west bengal': ['jute', 'rice', 'tea'],
-    'assam': ['tea', 'jute', 'rice'],
-    'madhya pradesh': ['soybean', 'wheat', 'chickpea'],
-    'andhra pradesh': ['rice', 'cotton', 'chilli', 'tobacco'],
-    'telangana': ['cotton', 'rice', 'maize', 'tur'],
-    'tamil nadu': ['rice', 'groundnut', 'sugarcane', 'cotton'],
-    'rajasthan': ['mustard', 'bajra', 'chickpea', 'guar'],
-    'bihar': ['rice', 'maize', 'makhana', 'litchi'],
-    'odisha': ['rice', 'jute'],
-    'chhattisgarh': ['rice', 'soybean']
+// ==========================================
+// 🛡️ AGRONOMY SAFETY VETO ENGINE
+// Real agriculture relies on hard rules to 
+// prevent dangerous ML hallucinations.
+// ==========================================
+const passesAgronomySafety = (cropName, soil, water, season) => {
+    const crop = cropName.toLowerCase();
+    const waterAvail = water.availability.toLowerCase();
+    const soilType = soil.type.toLowerCase();
+    const currentSeason = season.toLowerCase();
+
+    // Veto 1: High-water crops in low-water areas
+    if (waterAvail === 'low' && ['sugarcane', 'rice', 'turmeric', 'banana'].includes(crop)) return false;
+
+    // Veto 2: Dry crops in waterlogged areas
+    if (waterAvail === 'high' && ['bajra', 'jowar', 'cotton'].includes(crop)) return false;
+
+    // Veto 3: Strict soil preferences
+    if (soilType === 'red' && ['cotton'].includes(crop)) return false; // Cotton needs black/alluvial
+
+    // Veto 4: Strict season mapping (Simplified)
+    if (currentSeason === 'rabi' && ['cotton', 'rice'].includes(crop)) return false;
+
+    return true; // Crop passes all safety checks
 };
+
+// Removed regional boosts logic - relying purely on the custom ML model
 
 router.post('/recommend', async (req, res) => {
     try {
@@ -59,7 +66,13 @@ router.post('/recommend', async (req, res) => {
             temperature: weather.temperature || 25,
             humidity: weather.humidity || 70,
             ph: soil.pH || 6.5,
-            rainfall: weather.rainfall || 100
+            rainfall: weather.rainfall || 100,
+            soil_type: soil.type || 'black',
+            soil_moisture: soil.moisture || 'medium',
+            season: season || 'kharif',
+            water_availability: water.availability || 'medium',
+            water_ph: water.pH || 7.0,
+            location: location && location.region ? location.region : 'Maharashtra'
         };
 
         const ML_URL = process.env.ML_API_URL || 'http://127.0.0.1:8000';
@@ -71,37 +84,34 @@ router.post('/recommend', async (req, res) => {
             return res.status(500).json({ error: 'Failed to get predictions from ML Service.' });
         }
 
-        const recommendations = mlResponse.data.recommendations;
+        const rawRecommendations = mlResponse.data.recommendations;
 
-        const stateName = (location && location.state) ? location.state.toLowerCase() : '';
-        const boostedCrops = regionalBoosts[stateName] || [];
+        // Apply Safety Veto Engine
+        const safeRecommendations = rawRecommendations.filter(rec => 
+            passesAgronomySafety(rec.crop, soil, water, season)
+        );
 
-        // Enrich the recommendations with Profit, Fertilizer Data, and Regional Logic
-        let enrichedRecommendations = recommendations.map(rec => {
-            let conf = rec.confidence;
-            let reasonSuffix = '';
-
-            if (boostedCrops.length > 0) {
-                if (boostedCrops.includes(rec.crop.toLowerCase())) {
-                    conf = Math.min(99, conf + 15); // Boost confidence
-                    reasonSuffix = ` This crop is highly suitable for the ${location.state} region.`;
-                } else {
-                    conf = Math.max(10, conf - 15); // Penalize confidence
-                    reasonSuffix = ` Note: This crop is less common in ${location.state}.`;
-                }
-            }
-
+        // Enrich the safe recommendations with Profit and Fertilizer Data
+        let enrichedRecommendations = safeRecommendations.map(rec => {
             return {
                 crop: rec.crop,
-                confidence: conf,
-                expectedProfit: expectedProfitMap[rec.crop.toLowerCase()] || 20000,
-                reason: `Based on soil NPK levels (${soil.N}, ${soil.P}, ${soil.K}), pH of ${soil.pH}, and local weather suitability.${reasonSuffix}`,
+                confidence: Math.round(rec.confidence * 100), // Format as percentage
+                expectedProfit: expectedProfitMap[rec.crop.toLowerCase()] || 45000,
+                reason: `Based on your exact region, soil health, and local weather patterns. Passed all safety vetos.`,
                 fertilizerRoadmap: getFertilizerRoadmap(rec.crop)
             };
         });
 
-        // Re-sort by modified confidence
-        enrichedRecommendations.sort((a, b) => b.confidence - a.confidence);
+        // Ensure we always have at least 1 recommendation even if vetos are aggressive
+        if (enrichedRecommendations.length === 0 && rawRecommendations.length > 0) {
+            enrichedRecommendations.push({
+                crop: rawRecommendations[0].crop,
+                confidence: Math.round(rawRecommendations[0].confidence * 100),
+                expectedProfit: 20000,
+                reason: `Warning: This crop violates optimal agronomy rules for your inputs, but mathematically matches the soil chemistry.`,
+                fertilizerRoadmap: getFertilizerRoadmap(rawRecommendations[0].crop)
+            });
+        }
 
         // Simple text format for Future WhatsApp bot
         const topCropsText = enrichedRecommendations.map(r => r.crop.charAt(0).toUpperCase() + r.crop.slice(1)).join(', ');

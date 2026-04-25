@@ -7,7 +7,7 @@ const RecommendationForm = ({ onSubmit, loading }) => {
     weather: { temperature: '28', humidity: '70', rainfall: '100' },
     water: { availability: 'Medium', pH: '7.0' },
     season: 'Kharif',
-    location: { address: '', state: '', lat: null, lon: null }
+    location: { address: '', state: '', region: 'Vidarbha', lat: null, lon: null }
   });
 
   const [locating, setLocating] = useState(false);
@@ -119,8 +119,8 @@ const RecommendationForm = ({ onSubmit, loading }) => {
             <MapPin size={24} /> Farm Location (For Region-Based Crop AI)
           </h3>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <div className="input-group" style={{ flex: '1', minWidth: '300px' }}>
-              <label>Address / Region</label>
+            <div className="input-group" style={{ flex: '1', minWidth: '200px' }}>
+              <label>Address</label>
               <textarea 
                 className="input-control" 
                 rows="2"
@@ -128,6 +128,16 @@ const RecommendationForm = ({ onSubmit, loading }) => {
                 value={formData.location.address}
                 onChange={(e) => handleLocationChange('address', e.target.value)}
               />
+            </div>
+            <div className="input-group" style={{ flex: '1', minWidth: '150px' }}>
+              <label>Maharashtra Region</label>
+              <select className="input-control" value={formData.location.region} onChange={(e) => handleLocationChange('region', e.target.value)}>
+                <option value="Vidarbha">Vidarbha</option>
+                <option value="Marathwada">Marathwada</option>
+                <option value="Khandesh">Khandesh</option>
+                <option value="Western Maharashtra">Western Maharashtra</option>
+                <option value="Konkan">Konkan</option>
+              </select>
             </div>
             <div style={{ marginTop: '30px' }}>
               <button type="button" className="btn-secondary" onClick={getCurrentLocation} disabled={locating}>
@@ -233,6 +243,10 @@ const RecommendationForm = ({ onSubmit, loading }) => {
                 <option value="Medium">Medium (Canal/Well)</option>
                 <option value="High">High (Abundant)</option>
               </select>
+            </div>
+            <div className="input-group">
+              <label>Water pH</label>
+              <input type="number" step="0.1" className="input-control" value={formData.water.pH} onChange={(e) => handleChange('water', 'pH', e.target.value)} />
             </div>
           </div>
         </div>
