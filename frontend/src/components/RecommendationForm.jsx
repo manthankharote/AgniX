@@ -51,6 +51,31 @@ const RecommendationForm = ({ onSubmit, loading }) => {
         handleLocationChange('lon', lon);
         handleLocationChange('address', data.display_name);
         handleLocationChange('state', data.address.state || data.address.region || '');
+
+        // Auto-detect Maharashtra Region
+        const district = (data.address.state_district || data.address.county || data.address.city || "").toLowerCase();
+        
+        const regions = {
+          'vidarbha': ['nagpur', 'wardha', 'bhandara', 'gondia', 'chandrapur', 'gadchiroli', 'amravati', 'akola', 'washim', 'buldhana', 'yavatmal'],
+          'marathwada': ['aurangabad', 'sambhajinagar', 'jalna', 'parbhani', 'hingoli', 'nanded', 'beed', 'latur', 'osmanabad', 'dharashiv'],
+          'khandesh': ['jalgaon', 'dhule', 'nandurbar'],
+          'konkan': ['mumbai', 'thane', 'palghar', 'raigad', 'ratnagiri', 'sindhudurg'],
+          'western maharashtra': ['pune', 'satara', 'sangli', 'solapur', 'kolhapur', 'ahmednagar', 'nashik']
+        };
+
+        let detectedRegion = 'Western Maharashtra'; // Default fallback
+        for (const [regionName, districts] of Object.entries(regions)) {
+          if (districts.some(d => district.includes(d))) {
+            // Match the exact casing expected by the dropdown
+            if (regionName === 'vidarbha') detectedRegion = 'Vidarbha';
+            else if (regionName === 'marathwada') detectedRegion = 'Marathwada';
+            else if (regionName === 'khandesh') detectedRegion = 'Khandesh';
+            else if (regionName === 'konkan') detectedRegion = 'Konkan';
+            else if (regionName === 'western maharashtra') detectedRegion = 'Western Maharashtra';
+            break;
+          }
+        }
+        handleLocationChange('region', detectedRegion);
         
       } catch (e) {
         console.error('Failed to get address', e);
